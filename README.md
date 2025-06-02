@@ -1,38 +1,103 @@
-# SAP-samples/repository-template
-This default template for SAP Samples repositories includes files for README, LICENSE, and REUSE.toml. All repositories on github.com/SAP-samples will be created based on this template.
-
-# Containing Files
-
-1. The LICENSE file:
-In most cases, the license for SAP sample projects is `Apache 2.0`.
-
-2. The REUSE.toml file: 
-The [Reuse Tool](https://reuse.software/) must be used for your samples project. You can find the REUSE.toml in the project initial. Please replace the parts inside the single angle quotation marks < > by the specific information for your repository.
-
-3. The README.md file (this file):
-Please edit this file as it is the primary description file for your project. You can find some placeholder titles for sections below.
-
-# [Title]
-<!-- Please include descriptive title -->
-
-<!--- Register repository https://api.reuse.software/register, then add REUSE badge:
-[![REUSE status](https://api.reuse.software/badge/github.com/SAP-samples/REPO-NAME)](https://api.reuse.software/info/github.com/SAP-samples/REPO-NAME)
--->
+# ConTextTab: A Semantics-Aware Tabular In-Context Learner
+[![REUSE status](https://api.reuse.software/badge/github.com/SAP-samples/contexttab)](https://api.reuse.software/info/github.com/SAP-samples/contexttab)
 
 ## Description
-<!-- Please include SEO-friendly description -->
+
+Implementation of the deep learning model with the inference pipeline described in the paper "ConTextTab: A Semantics-Aware Tabular In-Context Learner". Link to the paper: [ARXIV LINK]
+
+![logo](https://github.com/SAP-samples/contexttab/blob/main/ConTextTab_architecture.png)
+
+## Abstract
+
+Tabular in-context learning (ICL) has recently achieved state-of-the-art (SOTA) performance on several tabular prediction tasks. Previously restricted to classification problems on small tables, recent advances such as TabPFN and TabICL have extended its use to larger datasets. While being architecturally efficient and well-adapted to tabular data structures, current table-native ICL architectures, being trained exclusively on synthetic data, do not fully leverage the rich semantics and world knowledge contained in real-world tabular data. On another end of this spectrum, tabular ICL models based on pretrained large language models such as TabuLa-8B integrate deep semantic understanding and world knowledge but are only able to make use of a small amount of context due to inherent architectural limitations. With the aim to combine the best of both these worlds, we introduce **ConTextTab**, integrating semantic understanding and alignment into a table-native ICL framework. By employing specialized embeddings for different data modalities and by training on large-scale real-world tabular data, our model is competitive with SOTA across a broad set of benchmarks while setting a new standard on the semantically rich CARTE benchmark.
 
 ## Requirements
 
-## Download and Installation
+The requirements are detailed in the `requirements.txt` file
+
+## Basic Usage
+
+### Classification
+
+```python
+from sklearn.datasets import load_breast_cancer
+from sklearn.metrics import accuracy_score, roc_auc_score
+from sklearn.model_selection import train_test_split
+
+from contexttab.contexttab import ConTextTabClassifier
+from contexttab.constants import ModelSize
+
+# Load data
+X, y = load_breast_cancer(return_X_y=True)
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.5, random_state=42)
+
+# Initialize a classifier
+clf = ConTextTabClassifier(ModelSize.base,
+                           './contexttab/checkpoints/0.1_l2/base.pt',
+                           bagging=1,
+                           max_context_size=2048,
+                           regression_type='l2',
+                           classification_type='cross-entropy',
+                           is_load_rnn=True)
+
+clf.fit(X_train, y_train)
+
+# Predict probabilities
+prediction_probabilities = clf.predict_proba(X_test)
+print("ROC AUC:", roc_auc_score(y_test, prediction_probabilities[:, 1]))
+
+# Predict labels
+predictions = clf.predict(X_test)
+print("Accuracy", accuracy_score(y_test, predictions))
+```
+
+### Regression
+```python
+from sklearn.datasets import fetch_openml
+from sklearn.metrics import mean_squared_error, r2_score
+from sklearn.model_selection import train_test_split
+
+from contexttab.contexttab import ConTextTabRegressor
+from contexttab.constants import ModelSize
+
+# Load Boston Housing data
+df = fetch_openml(data_id=531, as_frame=True)  # Boston Housing dataset
+X = df.data
+y = df.target.astype(float)  # Ensure target is float for regression
+
+# Train-test split
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.5, random_state=42)
+
+# Initialize the regressor
+regressor = ConTextTabRegressor(ModelSize.base,
+                                './contexttab/checkpoints/0.1_l2/base.pt',
+                                bagging=1,
+                                max_context_size=2048,
+                                regression_type='l2',
+                                classification_type='cross-entropy',
+                                is_load_rnn=True)
+
+regressor.fit(X_train, y_train)
+
+# Predict on the test set
+predictions = regressor.predict(X_test)
+
+# Evaluate the model
+mse = mean_squared_error(y_test, predictions)
+r2 = r2_score(y_test, predictions)
+
+print("Mean Squared Error (MSE):", mse)
+print("R² Score:", r2)
+```
+
+## Citations
+If you use this dataset in your research or want to refer to our work, please cite: [TODO]
 
 ## Known Issues
-<!-- You may simply state "No known issues. -->
+No known issues
 
 ## How to obtain support
-[Create an issue](https://github.com/SAP-samples/<repository-name>/issues) in this repository if you find a bug or have questions about the content.
- 
-For additional support, [ask a question in SAP Community](https://answers.sap.com/questions/ask.html).
+[Create an issue](https://github.com/SAP-samples/contexttab/issues) in this repository if you find a bug or have questions about the content.
 
 ## Contributing
 If you wish to contribute code, offer fixes or improvements, please send a pull request. Due to legal reasons, contributors will be asked to accept a DCO when they create the first pull request to this project. This happens in an automated fashion during the submission process. SAP uses [the standard DCO text of the Linux Foundation](https://developercertificate.org/).
