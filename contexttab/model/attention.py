@@ -1,81 +1,9 @@
-import os
-from typing import Literal, Optional, Tuple
+from typing import Optional, Tuple
 
 import torch
 from torch import nn
 from torch.nn.attention import SDPBackend, sdpa_kernel
-from torch.utils.checkpoint import checkpoint_sequential
 from transformers.models.roberta.modeling_roberta import RobertaIntermediate, RobertaOutput, RobertaSelfOutput
-
-from contexttab.constants import ModelSize
-from contexttab.model.commons import AbstractModel, CellEmbeddings
-
-os.environ['TORCH_CUDNN_SDPA_ENABLED'] = '1'
-
-
-class ConTextTab(AbstractModel):
-
-    def __init__(self,
-                 model_size: ModelSize,
-                 regression_type: Literal['reg-as-classif', 'l2', 'l2-with-target-binning', 'clustering',
-                                          'clustering-cosine'] = 'reg-as-classif',
-                 classification_type: Literal['cross-entropy', 'clustering', 'triplet-l2', 'triplet-cosine',
-                                              'clustering-cosine'] = 'cross-entropy',
-                 attention_implementation='efficient',
-                 checkpointing_segments=1,
-                 **kwargs):
-        super().__init__(model_size=model_size,
-                         regression_type=regression_type,
-                         classification_type=classification_type)
-        assert 0 <= checkpointing_segments <= self.config.num_hidden_layers
-        self.checkpointing_segments = checkpointing_segments
-
-        self.config.attention_implementation = attention_implementation
-
-        self.embeddings = CellEmbeddings(self.config,
-                                         add_target_embedding_to_input=True,
-                                         regression_type=regression_type,
-                                         is_target_content_mapping=(classification_type != 'cross-entropy'))
-        self.in_context_encoder = nn.ModuleList(
-            [TwoDimensionalAttentionLayer(self.config) for _ in range(self.config.num_hidden_layers)])
-
-    def forward(self,
-                data: dict[str, torch.Tensor],
-                is_regression: bool,
-                labels=None,
-                anchors_idx=None,
-                positives_idx=None,
-                negatives_idx=None,
-                **kwargs):
-        input_embeds = self.embeddings(data, is_regression)  # (max_num_rows, max_num_columns, hidden_size)
-
-        extended_attention_mask = self.build_context_attention_mask(data, input_embeds.device)
-        extended_attention_mask = extended_attention_mask.type(input_embeds.dtype)
-
-        if self.checkpointing_segments == 0:
-            for layer in self.in_context_encoder:
-                input_embeds = layer(input_embeds, extended_attention_mask)
-            encoder_outputs = input_embeds
-        else:
-            # Remark: we need to bind `module` during creation time to avoid the issue that just doing
-            #    lambda x: module(x, extended_attention_mask) for module in self.in_context_encoder
-            # ends up always capturing the last value of the loop for all functions.
-            functions_to_checkpoint = [
-                lambda x, mod=module: mod(x, extended_attention_mask) for module in self.in_context_encoder
-            ]
-
-            # We checkpoint the forward pass of the encoder, to save memory.
-            encoder_outputs = checkpoint_sequential(functions_to_checkpoint,
-                                                    segments=self.checkpointing_segments,
-                                                    input=input_embeds,
-                                                    use_reentrant=False)
-
-        # encoder_outputs has shape (num_rows, num_columns, hidden_size)
-
-        target_column_output = encoder_outputs[:, -1]  # (num_rows, hidden_size)
-
-        return self.forward_heads(target_column_output, is_regression, labels, data['target'], data['target_delta'],
-                                  anchors_idx, positives_idx, negatives_idx)
 
 
 class TwoDimensionalAttentionLayer(nn.Module):
