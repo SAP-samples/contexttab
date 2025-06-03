@@ -47,8 +47,7 @@ class ConTextTabEstimator(BaseEstimator, ABC):
                                           'clustering-cosine'] = 'reg-as-classif',
                  classification_type: Literal['cross-entropy', 'clustering', 'triplet-l2', 'triplet-cosine',
                                               'clustering-cosine'] = 'cross-entropy',
-                 is_drop_constant_columns: bool = True,
-                 is_load_rnn=False):            
+                 is_drop_constant_columns: bool = True):
 
         self.model_size = model_size
         self.checkpoint = checkpoint
@@ -70,7 +69,7 @@ class ConTextTabEstimator(BaseEstimator, ABC):
         else:
             self.dtype = torch.float32
 
-        self.model.load_weights(Path(checkpoint), self.device, is_load_rnn=is_load_rnn)
+        self.model.load_weights(Path(checkpoint), self.device)
         self.regression_type = regression_type
         self.seed = 42
         self.is_drop_constant_columns = is_drop_constant_columns

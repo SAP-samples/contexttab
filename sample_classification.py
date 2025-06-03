@@ -16,8 +16,7 @@ clf = ConTextTabClassifier(ModelSize.base,
                            bagging=1,
                            max_context_size=2048,
                            regression_type='l2',
-                           classification_type='cross-entropy',
-                           is_load_rnn=True)
+                           classification_type='cross-entropy')
 
 clf.fit(X_train, y_train)
 

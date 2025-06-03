@@ -504,18 +504,16 @@ class AbstractModel(nn.Module, ABC, ModuleUtilsMixin):
                                          f'in_context_encoder.{layer_idx}.')] = state_dict[k]
         return state_dict
 
-    def load_weights(self, checkpoint_path: Union[str, Path], device: torch.device, is_load_rnn=False):
+    def load_weights(self, checkpoint_path: Union[str, Path], device: torch.device, is_copy_last_layer=True):
         state_dict = torch.load(checkpoint_path, map_location=device, weights_only=True)
 
         try:
-            if is_load_rnn:
-                state_dict = self.copy_last_layer_weights_to_all(state_dict)
-            self.load_state_dict(state_dict)
-        except RuntimeError:
-            if is_load_rnn:
+            if is_copy_last_layer:
                 state_dict = self.copy_last_layer_weights_to_all(state_dict)
             # Remove module. in front of all keys - maybe added by deepspeed?
             self.load_state_dict({k.removeprefix('module.'): v for k, v in state_dict.items()})
+        except:
+            return self.load_weights(checkpoint_path, device, is_copy_last_layer=True)
 
     def extract_prediction_classification(self, logits: torch.Tensor, targets: torch.Tensor, label_classes: np.ndarray):
         test_mask = (targets <= -99)
