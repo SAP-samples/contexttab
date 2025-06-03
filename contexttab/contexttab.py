@@ -2,7 +2,7 @@ import warnings
 from abc import ABC, abstractmethod
 from math import ceil
 from pathlib import Path
-from typing import Literal, Union
+from typing import Literal, Optional, Union
 
 import numpy as np
 import pandas as pd
@@ -14,10 +14,21 @@ from sklearn.utils.validation import check_is_fitted
 from contexttab.constants import ZMQ_PORT_DEFAULT
 from contexttab.scripts.start_embedding_server import start_embedding_server
 from contexttab.data.tokenizer import Tokenizer
-from contexttab.model.contexttab import ConTextTab
-from contexttab.scripts.utils import to_device
+from contexttab.model.torch_model import ConTextTab
 
 warnings.filterwarnings('ignore', message='.*not support non-writable tensors.*')
+
+
+def to_device(x, device: Union[torch.device, int], dtype: Optional[torch.dtype] = None, raise_on_unexpected=True):
+    for k, v in x.items():
+        if isinstance(v, torch.Tensor):
+            target_dtype = dtype if v.dtype == torch.float32 else v.dtype
+            x[k] = v.to(device, dtype=target_dtype)
+        elif isinstance(v, dict):
+            x[k] = to_device(v, device, dtype=dtype)
+        elif v is not None and raise_on_unexpected:
+            raise ValueError(f'Unknown type, {type(v)}')
+    return x
 
 
 class ConTextTabEstimator(BaseEstimator, ABC):
@@ -42,10 +53,9 @@ class ConTextTabEstimator(BaseEstimator, ABC):
                  bagging: Union[Literal['auto'], int] = 1,
                  max_context_size: int = 800,
                  num_regression_bins: int = 16,
-                 regression_type: Literal['reg-as-classif', 'l2', 'l2-with-target-binning',
-                                          'clustering', 'clustering-cosine'] = 'reg-as-classif',
-                 classification_type: Literal['cross-entropy', 'clustering',
-                                              'clustering-cosine'] = 'cross-entropy',
+                 regression_type: Literal['reg-as-classif', 'l2', 'l2-with-target-binning', 'clustering',
+                                          'clustering-cosine'] = 'reg-as-classif',
+                 classification_type: Literal['cross-entropy', 'clustering', 'clustering-cosine'] = 'cross-entropy',
                  is_drop_constant_columns: bool = True):
 
         self.model_size = model_size
@@ -55,9 +65,7 @@ class ConTextTabEstimator(BaseEstimator, ABC):
             raise ValueError('bagging must be an integer or "auto"')
         self.max_context_size = max_context_size
         self.num_regression_bins = num_regression_bins
-        self.model = ConTextTab(model_size,
-                                regression_type=regression_type,
-                                classification_type=classification_type)
+        self.model = ConTextTab(model_size, regression_type=regression_type, classification_type=classification_type)
         # We're using a single GPU here, even if more are available
         self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
         start_embedding_server(Tokenizer.sentence_embedding_model_name)
@@ -94,8 +102,6 @@ class ConTextTabEstimator(BaseEstimator, ABC):
         if not isinstance(X, pd.DataFrame):
             X = pd.DataFrame(X)
         if not isinstance(y, pd.Series):
-            # Make sure we are dealing with strings, because it's classification.
-            # TODO: check if this is a good idea for e.g. binary classification with classes 0 and 1
             y = pd.Series(y, name='TARGET')
 
         self.X_ = X
@@ -131,9 +137,7 @@ class ConTextTabEstimator(BaseEstimator, ABC):
 
         if isinstance(self.bagging, int) and self.bagging > 1:
             # For bagging, we use replacement
-            df_train = df_train.sample(self.max_samples_in_bag,
-                                       replace=True,
-                                       random_state=self.seed + bagging_index)
+            df_train = df_train.sample(self.max_samples_in_bag, replace=True, random_state=self.seed + bagging_index)
         elif len(df_train) > self.max_context_size:
             if isinstance(self.bagging, str):
                 assert self.bagging == 'auto'
@@ -142,8 +146,7 @@ class ConTextTabEstimator(BaseEstimator, ABC):
                 # bagging_index = 0 --> select 0:max_context_size
                 # ... (linearly spaced like np.linspace(0, len(df_train) - max_context_size, self.bagging_number))
                 # bagging_index = self.bagging_number - 1 --> select (len(df_train) - max_context_size):len(df_train)
-                start = int((len(df_train) - self.max_context_size) / (self.bagging_number - 1) *
-                            bagging_index)
+                start = int((len(df_train) - self.max_context_size) / (self.bagging_number - 1) * bagging_index)
                 # We need a fixed seed, so across diffent "bagging folds" we select the correct indices
                 # (as non-overlapping as possible)
                 np.random.seed(self.seed)
@@ -152,9 +155,7 @@ class ConTextTabEstimator(BaseEstimator, ABC):
                 df_train = df_train.loc[indices[start:end]]
             else:
                 # There is no bagging, but we still have to sample because there are too many points
-                df_train = df_train.sample(self.max_context_size,
-                                           replace=False,
-                                           random_state=self.seed + bagging_index)
+                df_train = df_train.sample(self.max_context_size, replace=False, random_state=self.seed + bagging_index)
 
         df = pd.concat([df_train, df_test], ignore_index=True)
 
@@ -169,10 +170,7 @@ class ConTextTabEstimator(BaseEstimator, ABC):
         if df.shape[1] > self.MAX_NUM_COLUMNS:
             X = df.iloc[:, :-1]
             y = df.iloc[:, -1:]
-            X = X.sample(n=self.MAX_NUM_COLUMNS - 1,
-                         axis=1,
-                         random_state=self.seed + bagging_index,
-                         replace=False)
+            X = X.sample(n=self.MAX_NUM_COLUMNS - 1, axis=1, random_state=self.seed + bagging_index, replace=False)
             df = pd.concat([X, y], axis=1)
 
         df_train = df.iloc[:len(df_train)]
@@ -202,7 +200,7 @@ class ConTextTabEstimator(BaseEstimator, ABC):
         }
 
     @abstractmethod
-    def predict(self, X):
+    def predict(self, X) -> Union[list, np.ndarray]:
         pass
 
 
@@ -237,17 +235,14 @@ class ConTextTabClassifier(ClassifierMixin, ConTextTabEstimator):
             tokenized_data = self.get_tokenized_data(X.copy(), bagging_index)
 
             try:
-                tokenized_data = to_device(tokenized_data,
-                                           self.device,
-                                           raise_on_unexpected=False,
-                                           dtype=self.dtype)
+                tokenized_data = to_device(tokenized_data, self.device, raise_on_unexpected=False, dtype=self.dtype)
             except TypeError:
                 # Legacy compatibility
                 tokenized_data = to_device(tokenized_data, self.device, raise_on_unexpected=False)
             logits_classif = self.model(**tokenized_data)
 
-            _, logits = self.model.extract_prediction_classification(
-                logits_classif, tokenized_data['data']['target'], tokenized_data['label_classes'])
+            _, logits = self.model.extract_prediction_classification(logits_classif, tokenized_data['data']['target'],
+                                                                     tokenized_data['label_classes'])
 
             all_logits.append(self.reorder_logits(logits, tokenized_data['label_classes']))
 
@@ -297,15 +292,13 @@ class ConTextTabRegressor(RegressorMixin, ConTextTabEstimator):
 
             if self.regression_type != 'l2':
                 if len(label_classes) != self.num_regression_bins:
-                    raise ValueError(
-                        f'Expected {self.num_regression_bins} classes, got {len(label_classes)}')
+                    raise ValueError(f'Expected {self.num_regression_bins} classes, got {len(label_classes)}')
 
-            preds, _ = self.model.extract_prediction_regression(
-                logits_reg,
-                tokenized_data['data']['target'],
-                tokenized_data['label_classes'],
-                target_mean=tokenized_data.get('target_mean'),
-                target_std=tokenized_data.get('target_std'))
+            preds, _ = self.model.extract_prediction_regression(logits_reg,
+                                                                tokenized_data['data']['target'],
+                                                                tokenized_data['label_classes'],
+                                                                target_mean=tokenized_data.get('target_mean'),
+                                                                target_std=tokenized_data.get('target_std'))
             all_preds.append(preds)
 
         preds = np.mean(all_preds, axis=0)

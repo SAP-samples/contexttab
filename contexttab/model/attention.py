@@ -75,7 +75,7 @@ class TorchRobertaLayer(nn.Module):
         attention_output = self.attention(hidden_states, attention_mask)
         intermediate_output = self.intermediate(attention_output)
         # Return a tuple like the original RobertaLayer, though it's not very useful
-        return (self.output(intermediate_output, attention_output), )
+        return (self.output(intermediate_output, attention_output),)
 
 
 class TorchAttention(nn.Module):
@@ -142,5 +142,5 @@ class TorchSelfAttention(nn.Module):
                 is_causal=False)
 
         context_layer = attn_output.permute(0, 2, 1, 3).contiguous()
-        new_context_layer_shape = context_layer.size()[:-2] + (self.config.hidden_size, )
+        new_context_layer_shape = context_layer.size()[:-2] + (self.config.hidden_size,)
         return context_layer.view(new_context_layer_shape)

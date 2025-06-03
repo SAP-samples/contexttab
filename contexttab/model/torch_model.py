@@ -25,10 +25,9 @@ class ConTextTab(nn.Module, ModuleUtilsMixin):
 
     def __init__(self,
                  model_size: ModelSize,
-                 regression_type: Literal['reg-as-classif', 'l2', 'l2-with-target-binning',
-                                          'clustering', 'clustering-cosine'] = 'reg-as-classif',
-                 classification_type: Literal['cross-entropy', 'clustering',
-                                              'clustering-cosine'] = 'cross-entropy',
+                 regression_type: Literal['reg-as-classif', 'l2', 'l2-with-target-binning', 'clustering',
+                                          'clustering-cosine'] = 'reg-as-classif',
+                 classification_type: Literal['cross-entropy', 'clustering', 'clustering-cosine'] = 'cross-entropy',
                  attention_implementation='efficient',
                  checkpointing_segments=1,
                  **kwargs):
@@ -71,11 +70,9 @@ class ConTextTab(nn.Module, ModuleUtilsMixin):
 
         self.embeddings = CellEmbeddings(self.config,
                                          regression_type=regression_type,
-                                         is_target_content_mapping=(classification_type
-                                                                    != 'cross-entropy'))
-        self.in_context_encoder = nn.ModuleList([
-            TwoDimensionalAttentionLayer(self.config) for _ in range(self.config.num_hidden_layers)
-        ])
+                                         is_target_content_mapping=(classification_type != 'cross-entropy'))
+        self.in_context_encoder = nn.ModuleList(
+            [TwoDimensionalAttentionLayer(self.config) for _ in range(self.config.num_hidden_layers)])
 
     @staticmethod
     def build_context_attention_mask(data, device):
@@ -109,8 +106,7 @@ class ConTextTab(nn.Module, ModuleUtilsMixin):
         labels = labels.long()
         is_test_mask = train_target <= -99
         loss_labels = torch.where(is_test_mask, labels, -100 * torch.ones_like(labels))
-        loss_classif = nn.functional.cross_entropy(logits.float(), loss_labels,
-                                                   ignore_index=-100).float()
+        loss_classif = nn.functional.cross_entropy(logits.float(), loss_labels, ignore_index=-100).float()
 
         prediction = logits.argmax(dim=-1)[is_test_mask]
         accuracy = torch.mean((prediction == labels[is_test_mask]).float())
@@ -184,9 +180,7 @@ class ConTextTab(nn.Module, ModuleUtilsMixin):
             # but we don't push it to _always_ be opposite (cosine similarity = -1) because if there are more
             # than 2 classes that's impossible to achieve
             # We also clip at 1.0 because very rarely it seems to crash otherwise...
-            loss_cluster = torch.nn.functional.binary_cross_entropy(torch.clip(logits,
-                                                                               min=0.0,
-                                                                               max=1.0),
+            loss_cluster = torch.nn.functional.binary_cross_entropy(torch.clip(logits, min=0.0, max=1.0),
                                                                     adjacency_matrices,
                                                                     reduction='none')
         else:
@@ -222,8 +216,7 @@ class ConTextTab(nn.Module, ModuleUtilsMixin):
 
     def compute_regression_output_loss_and_metric(self, logits, labels, train_target):
         if self.regression_type == 'reg-as-classif':
-            loss_reg, metric_reg = self.compute_classif_loss_and_metric(
-                logits, labels, train_target)
+            loss_reg, metric_reg = self.compute_classif_loss_and_metric(logits, labels, train_target)
         else:
             logits = logits.squeeze(-1)  # shape (num_rows, )
             test_mask = train_target <= -99
@@ -296,10 +289,7 @@ class ConTextTab(nn.Module, ModuleUtilsMixin):
         if is_classification:
             if self.classification_type in ['clustering', 'clustering-cosine']:
                 out, loss, metric = self.compute_clustering_output_loss_and_metric(
-                    out,
-                    labels,
-                    target,
-                    is_cosine_similarity=self.classification_type == 'clustering-cosine')
+                    out, labels, target, is_cosine_similarity=self.classification_type == 'clustering-cosine')
             else:
                 loss, metric = self.compute_classif_loss_and_metric(out, labels, target)
         else:
@@ -307,13 +297,9 @@ class ConTextTab(nn.Module, ModuleUtilsMixin):
             real_target = torch.round(target + target_delta).int()
             if self.regression_type in ['clustering', 'clustering-cosine']:
                 out, loss, metric = self.compute_clustering_output_loss_and_metric(
-                    out,
-                    labels,
-                    real_target,
-                    is_cosine_similarity=self.regression_type == 'clustering-cosine')
+                    out, labels, real_target, is_cosine_similarity=self.regression_type == 'clustering-cosine')
             else:
-                out, loss, metric = self.compute_regression_output_loss_and_metric(
-                    out, labels, real_target)
+                out, loss, metric = self.compute_regression_output_loss_and_metric(out, labels, real_target)
 
         return out, loss, metric
 
@@ -337,10 +323,7 @@ class ConTextTab(nn.Module, ModuleUtilsMixin):
                                          f'in_context_encoder.{layer_idx}.')] = state_dict[k]
         return state_dict
 
-    def load_weights(self,
-                     checkpoint_path: Union[str, Path],
-                     device: torch.device,
-                     is_copy_last_layer=True):
+    def load_weights(self, checkpoint_path: Union[str, Path], device: torch.device, is_copy_last_layer=True):
         state_dict = torch.load(checkpoint_path, map_location=device, weights_only=True)
 
         try:
@@ -351,13 +334,11 @@ class ConTextTab(nn.Module, ModuleUtilsMixin):
         except:
             return self.load_weights(checkpoint_path, device, is_copy_last_layer=True)
 
-    def extract_prediction_classification(self, logits: torch.Tensor, targets: torch.Tensor,
-                                          label_classes: np.ndarray):
+    def extract_prediction_classification(self, logits: torch.Tensor, targets: torch.Tensor, label_classes: np.ndarray):
         test_mask = (targets <= -99)
 
         if self.classification_type in ['clustering', 'clustering-cosine']:
-            test_preds, test_logits = self._extract_prediction_clustering(
-                logits, targets, test_mask, label_classes)
+            test_preds, test_logits = self._extract_prediction_clustering(logits, targets, test_mask, label_classes)
         else:
             test_logits = logits[test_mask]
             test_logits = test_logits[:, :len(label_classes)].cpu().float()
@@ -378,14 +359,11 @@ class ConTextTab(nn.Module, ModuleUtilsMixin):
 
         if self.regression_type == 'reg-as-classif':
             test_logits = logits[test_mask]
-            test_probas = torch.softmax(test_logits[:, :len(label_classes)],
-                                        dim=1).cpu().float().numpy()
+            test_probas = torch.softmax(test_logits[:, :len(label_classes)], dim=1).cpu().float().numpy()
             test_preds = test_probas @ label_classes
         elif self.regression_type in ['clustering', 'clustering-cosine']:
-            _, test_logits = self._extract_prediction_clustering(logits, targets, test_mask,
-                                                                 label_classes)
-            test_probas = torch.softmax(test_logits[:, :len(label_classes)],
-                                        dim=1).cpu().float().numpy()
+            _, test_logits = self._extract_prediction_clustering(logits, targets, test_mask, label_classes)
+            test_probas = torch.softmax(test_logits[:, :len(label_classes)], dim=1).cpu().float().numpy()
             test_preds = test_probas @ label_classes
         else:
             assert target_mean is not None and target_std is not None
@@ -396,8 +374,8 @@ class ConTextTab(nn.Module, ModuleUtilsMixin):
         return test_preds, test_probas
 
     @staticmethod
-    def _extract_prediction_clustering(similarities: torch.Tensor, targets: torch.Tensor,
-                                       test_mask: torch.Tensor, label_classes: np.ndarray):
+    def _extract_prediction_clustering(similarities: torch.Tensor, targets: torch.Tensor, test_mask: torch.Tensor,
+                                       label_classes: np.ndarray):
         """
         similarities has hape (num_rows, num_rows) and contains similarities between all pairs of rows.
         targets has shape (num_rows, ) and contains the target values for each row.
@@ -407,8 +385,7 @@ class ConTextTab(nn.Module, ModuleUtilsMixin):
         context_mask = ~test_mask
         targets_for_context = targets[context_mask].cpu()
         # get queries in rows and corresponding contexts in columns
-        similarities_masked = similarities[test_mask][:, context_mask].cpu(
-        )  # [queries_num, contexts_num]
+        similarities_masked = similarities[test_mask][:, context_mask].cpu()  # [queries_num, contexts_num]
 
         queries_num = similarities_masked.shape[0]
         test_similarities = torch.full((queries_num, len(label_classes)),
@@ -450,8 +427,7 @@ class ConTextTab(nn.Module, ModuleUtilsMixin):
             #    lambda x: module(x, extended_attention_mask) for module in self.in_context_encoder
             # ends up always capturing the last value of the loop for all functions.
             functions_to_checkpoint = [
-                lambda x, mod=module: mod(x, extended_attention_mask)
-                for module in self.in_context_encoder
+                lambda x, mod=module: mod(x, extended_attention_mask) for module in self.in_context_encoder
             ]
 
             # We checkpoint the forward pass of the encoder, to save memory.
@@ -464,5 +440,4 @@ class ConTextTab(nn.Module, ModuleUtilsMixin):
 
         target_column_output = encoder_outputs[:, -1]  # (num_rows, hidden_size)
 
-        return self.forward_heads(target_column_output, is_regression, labels, data['target'],
-                                  data['target_delta'])
+        return self.forward_heads(target_column_output, is_regression, labels, data['target'], data['target_delta'])
