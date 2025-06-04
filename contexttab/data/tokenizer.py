@@ -20,10 +20,8 @@ class Tokenizer:
     embedding_dim = embedding_model_to_dimension_and_pooling[sentence_embedding_model_name][0]
 
     def __init__(self,
-                 regression_type: Literal['reg-as-classif', 'l2', 'l2-with-target-binning',
-                                          'clustering', 'clustering-cosine'] = 'reg-as-classif',
-                 classification_type: Literal['cross-entropy', 'clustering',
-                                              'clustering-cosine'] = 'cross-entropy',
+                 regression_type: Literal['reg-as-classif', 'l2'] = 'reg-as-classif',
+                 classification_type: Literal['cross-entropy', 'clustering', 'clustering-cosine'] = 'cross-entropy',
                  num_regression_bins=16,
                  zmq_port=ZMQ_PORT_DEFAULT,
                  random_seed=None,
@@ -266,13 +264,13 @@ class Tokenizer:
                 labels_lower_bin, delta_labels, labels, label_classes = self.quantize_column(
                     y_context, y_query)
                 data['target'] = torch.tensor(labels_lower_bin)
-                # For regression ('reg-as-classif', 'l2-with-target-binning'), we also need the delta,
+                # For regression ('reg-as-classif'), we also need the delta,
                 # a float in [0, 1]; morally, the "real" target is data['target'] + data['delta']
                 data['target_delta'] = torch.tensor(delta_labels, dtype=torch.float32)
             else:
                 label_classes = np.zeros(self.QUANTILE_DIMENSION - 2)
 
-            if self.regression_type in ['l2', 'l2-with-target-binning']:
+            if self.regression_type == 'l2':
                 labels, _, _ = self.standard_scale_column(y_context, y_query)
                 if self.regression_type == 'l2':
                     data['target'] = torch.tensor(labels)

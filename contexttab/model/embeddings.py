@@ -38,8 +38,7 @@ class CellEmbeddings(nn.Module):
 
     def __init__(self,
                  config,
-                 regression_type: Literal['reg-as-classif', 'l2', 'l2-with-target-binning', 'clustering',
-                                          'clustering-cosine'] = 'reg-as-classif',
+                 regression_type: Literal['reg-as-classif', 'l2'] = 'reg-as-classif',
                  is_target_content_mapping: bool = False):
         super().__init__()
         self.hidden_size = config.hidden_size

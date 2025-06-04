@@ -1,7 +1,7 @@
-pyzmq
-transformers
-torcheval
-torch
-scikit-learn
-pandas
-pyarrow
+pyzmq==26.4.0
+transformers==4.52.4
+torcheval==0.0.7
+torch>=2.7.0
+scikit-learn==1.6.1
+pandas==2.2.3
+pyarrow==20.0.0

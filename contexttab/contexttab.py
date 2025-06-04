@@ -11,7 +11,7 @@ from sklearn.base import BaseEstimator, ClassifierMixin, RegressorMixin
 from sklearn.utils.multiclass import unique_labels
 from sklearn.utils.validation import check_is_fitted
 
-from contexttab.constants import ZMQ_PORT_DEFAULT
+from contexttab.constants import ZMQ_PORT_DEFAULT, ModelSize
 from contexttab.scripts.start_embedding_server import start_embedding_server
 from contexttab.data.tokenizer import Tokenizer
 from contexttab.model.torch_model import ConTextTab
@@ -32,40 +32,47 @@ def to_device(x, device: Union[torch.device, int], dtype: Optional[torch.dtype] 
 
 
 class ConTextTabEstimator(BaseEstimator, ABC):
-    """
-    model_size: one of the possibilities from ModelSize
-    checkpoint: path to the checkpoint file; must be of size ModelSize
-    bagging: number of bagging iterations; if 1 there is no bagging. If 'auto', then:
-        - There is no bagging if the number of samples is less than max_context_size - just use everything
-        - Otherwise, the training data is split into chunks size max_context_size rows:
-          ceil(len(dataset) / max_chunk_size) overlapping chunks
-          and each chunk is then used as a bagging iteration (so not "real" bagging)
-    max_context_size: maximum number of samples to use for training
-    num_regression_bins: number of bins to use for regression (to convert into classification)
+    """ConTextTabEstimator class.
+
+    Args:
+        checkpoint: path to the checkpoint file; must be of size base model size
+        bagging: number of bagging iterations; if 1 there is no bagging. If 'auto', then:
+            - There is no bagging if the number of samples is less than max_context_size - just use everything
+            - Otherwise, the training data is split into chunks size max_context_size rows:
+            ceil(len(dataset) / max_chunk_size) overlapping chunks
+            and each chunk is then used as a bagging iteration (so not "real" bagging)
+        max_context_size: maximum number of samples to use for training
+        num_regression_bins: number of bins to use for regression (to convert into classification)
+        regression_type: regression type that was used in the specified model
+            - reg-as-classif - binned regression where bin is associated with the quantile of a given column
+            - l2 - direct prediction of the target value with L2 loss during training
+        classification_type: classification type that was used in the specified model
+            - cross-entropy - class likelihood prediction using cross entropy loss during training
+            - clustering - class prediction using similarity between context and query vectors
+            - clustering-cosine - class prediction using cosine similarity between context and query vectors 
+        is_drop_constant_columns: flag to indicate to drop constant columns in the input dataframe
     """
     classification_or_regression: str
     MAX_AUTO_BAGS = 16
     MAX_NUM_COLUMNS = 500
 
     def __init__(self,
-                 model_size,
-                 checkpoint: str,
+                 checkpoint: str = './contexttab/checkpoints/0.1_l2/base.pt',
                  bagging: Union[Literal['auto'], int] = 1,
-                 max_context_size: int = 800,
+                 max_context_size: int = 8192,
                  num_regression_bins: int = 16,
-                 regression_type: Literal['reg-as-classif', 'l2', 'l2-with-target-binning', 'clustering',
-                                          'clustering-cosine'] = 'reg-as-classif',
+                 regression_type: Literal['reg-as-classif', 'l2'] = 'l2',
                  classification_type: Literal['cross-entropy', 'clustering', 'clustering-cosine'] = 'cross-entropy',
                  is_drop_constant_columns: bool = True):
 
-        self.model_size = model_size
+        self.model_size = ModelSize.base
         self.checkpoint = checkpoint
         self.bagging = bagging
         if not isinstance(bagging, int) and bagging != 'auto':
             raise ValueError('bagging must be an integer or "auto"')
         self.max_context_size = max_context_size
         self.num_regression_bins = num_regression_bins
-        self.model = ConTextTab(model_size, regression_type=regression_type, classification_type=classification_type)
+        self.model = ConTextTab(self.model_size, regression_type=regression_type, classification_type=classification_type)
         # We're using a single GPU here, even if more are available
         self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
         start_embedding_server(Tokenizer.sentence_embedding_model_name)
@@ -96,7 +103,13 @@ class ConTextTabEstimator(BaseEstimator, ABC):
     def task_specific_fit(self):
         pass
 
-    def fit(self, X, y):
+    def fit(self, X: Union[pd.DataFrame, np.ndarray], y: Union[pd.Series, np.ndarray]):
+        """Fit the model.
+
+        Args:
+            X: The input dataframe.
+            y: The target column.
+        """
         if len(X) != len(y):
             raise ValueError('X and y must have the same length')
         if not isinstance(X, pd.DataFrame):
@@ -185,7 +198,7 @@ class ConTextTabEstimator(BaseEstimator, ABC):
 
         target_mean, target_std = 0, 0
         is_regression = self.classification_or_regression == 'regression'
-        if is_regression and self.regression_type in ['l2', 'l2-with-target-binning']:
+        if is_regression and self.regression_type == 'l2':
             _, target_mean, target_std = self.tokenizer.standard_scale_column(y_train, y_test)
 
         return {
@@ -200,7 +213,7 @@ class ConTextTabEstimator(BaseEstimator, ABC):
         }
 
     @abstractmethod
-    def predict(self, X) -> Union[list, np.ndarray]:
+    def predict(self, X: Union[pd.DataFrame, np.ndarray]) -> Union[list, np.ndarray]:
         pass
 
 
@@ -222,7 +235,7 @@ class ConTextTabClassifier(ClassifierMixin, ConTextTabEstimator):
         return new_logits
 
     @torch.no_grad()
-    def _predict(self, X):
+    def _predict(self, X: Union[pd.DataFrame, np.ndarray]):
         # Check if fit has been called
         check_is_fitted(self)
 
@@ -258,12 +271,28 @@ class ConTextTabClassifier(ClassifierMixin, ConTextTabEstimator):
 
         return probs
 
-    def predict(self, X):
+    def predict(self, X: Union[pd.DataFrame, np.ndarray]) -> list:
+        """Predict the class labels for the provided input dataframe.
+
+        Args:
+            X: The input dataframe.
+
+        Returns:
+            The predicted class labels.
+        """
         probs = self._predict(X)
         preds = probs.argmax(dim=-1).numpy()
         return [self.classes_[p] for p in preds]
 
-    def predict_proba(self, X):
+    def predict_proba(self, X: Union[pd.DataFrame, np.ndarray]) -> np.ndarray:
+        """Predict the probabilities of the classes for the provided input dataframe.
+
+        Args:
+            X: The input data.
+
+        Returns:
+            The predicted probabilities of the classes.
+        """
         probs = self._predict(X)
         return probs.numpy()
 
@@ -275,7 +304,15 @@ class ConTextTabRegressor(RegressorMixin, ConTextTabEstimator):
         self.y_ = self.y_.astype(float)
 
     @torch.no_grad()
-    def predict(self, X):
+    def predict(self, X: Union[pd.DataFrame, np.ndarray]) -> np.ndarray:
+        """Predict the target variable.
+
+        Args:
+            X: The input dataframe.
+
+        Returns:
+            The predicted target variable.
+        """
         # Check if fit has been called
         check_is_fitted(self)
 
