@@ -20,14 +20,17 @@ Model checkpoints will be automatically downloaded.
 
 The requirements are detailed in the `requirements.txt` file for Python 3.11 version.
 
-Local installation:
+Local development installation:
 ```pip install -e .```
+
+Installation from source:
+```pip install git+https://${GIT_TOKEN}@github.com/SAP-samples/contexttab```
 
 ## Basic Usage
 
-The model supports both classification and regression tasks. It accepts input data in the form of a pandas DataFrame or a NumPy array. No preprocessing is required, column names and cell values are automatically embedded using a LLM that is running in the background, and any missing values are imputed.
+The model supports both classification and regression tasks. It accepts input data in the form of a pandas DataFrame or a NumPy array. No preprocessing is required, column names and cell values are automatically embedded using a LLM that is running in the background, and any missing values are handled correctly.
 
-For best performance, use a GPU such as A100 or H100 and set the context size to 8192. For large tables, it is recommended to use a bagging factor of 8.
+For best performance, use a GPU with at least 80 GB of memory and set the context size to 8192. For large tables, it is recommended to use a bagging factor of 8.
 
 ### Classification
 

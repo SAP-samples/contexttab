@@ -40,10 +40,11 @@ class ConTextTabEstimator(BaseEstimator, ABC):
         bagging: number of bagging iterations; if 1 there is no bagging. If 'auto', then:
             - There is no bagging if the number of samples is less than max_context_size - just use everything
             - Otherwise, the training data is split into chunks size max_context_size rows:
-            ceil(len(dataset) / max_chunk_size) overlapping chunks
-            and each chunk is then used as a bagging iteration (so not "real" bagging)
+            ceil(len(dataset) / max_context_size) overlapping chunks and each chunk is then used as a bagging
+            iteration (capped at MAX_AUTO_BAGS = 16).
         max_context_size: maximum number of samples to use for training
-        num_regression_bins: number of bins to use for regression (to convert into classification)
+        num_regression_bins: number of bins to use for regression (to convert into classification).
+            Unused if regression_type is 'l2'.
         regression_type: regression type that was used in the specified model
             - reg-as-classif - binned regression where bin is associated with the quantile of a given column
             - l2 - direct prediction of the target value with L2 loss during training
@@ -58,7 +59,7 @@ class ConTextTabEstimator(BaseEstimator, ABC):
     MAX_NUM_COLUMNS = 500
 
     def __init__(self,
-                 checkpoint: str = 'checkpoints/0.1_l2/base.pt',
+                 checkpoint: str = 'checkpoints/l2/base.pt',
                  bagging: Union[Literal['auto'], int] = 1,
                  max_context_size: int = 8192,
                  num_regression_bins: int = 16,
@@ -66,7 +67,7 @@ class ConTextTabEstimator(BaseEstimator, ABC):
                  classification_type: Literal['cross-entropy', 'clustering', 'clustering-cosine'] = 'cross-entropy',
                  is_drop_constant_columns: bool = True):
 
-        self.model_size = ModelSize.base
+        self.model_size = ModelSize[checkpoint.split('/')[-1].split('.')[0]]
         package_dir = Path(__file__).parent
         self.checkpoint = os.path.join(package_dir, checkpoint)
         self.bagging = bagging

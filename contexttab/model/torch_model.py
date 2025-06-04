@@ -25,7 +25,7 @@ class ConTextTab(nn.Module, ModuleUtilsMixin):
     """ConTextTab model class.
 
     Args:
-        model_size: size of the model e.g. mini, medium, small, base, large
+        model_size: size of the model e.g. ModelSize.mini or ModelSize.base
         regression_type: regression type that was used in the specified model
             - reg-as-classif - binned regression where bin is associated with the quantile of a given column
             - l2 - direct prediction of the target value with L2 loss during training
