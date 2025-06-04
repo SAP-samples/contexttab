@@ -1,3 +1,4 @@
+import os
 import warnings
 from abc import ABC, abstractmethod
 from math import ceil
@@ -57,7 +58,7 @@ class ConTextTabEstimator(BaseEstimator, ABC):
     MAX_NUM_COLUMNS = 500
 
     def __init__(self,
-                 checkpoint: str = './contexttab/checkpoints/0.1_l2/base.pt',
+                 checkpoint: str = 'checkpoints/0.1_l2/base.pt',
                  bagging: Union[Literal['auto'], int] = 1,
                  max_context_size: int = 8192,
                  num_regression_bins: int = 16,
@@ -66,7 +67,8 @@ class ConTextTabEstimator(BaseEstimator, ABC):
                  is_drop_constant_columns: bool = True):
 
         self.model_size = ModelSize.base
-        self.checkpoint = checkpoint
+        package_dir = Path(__file__).parent
+        self.checkpoint = os.path.join(package_dir, checkpoint)
         self.bagging = bagging
         if not isinstance(bagging, int) and bagging != 'auto':
             raise ValueError('bagging must be an integer or "auto"')
@@ -85,7 +87,7 @@ class ConTextTabEstimator(BaseEstimator, ABC):
         else:
             self.dtype = torch.float32
 
-        self.model.load_weights(Path(checkpoint), self.device)
+        self.model.load_weights(Path(self.checkpoint), self.device)
         self.regression_type = regression_type
         self.seed = 42
         self.is_drop_constant_columns = is_drop_constant_columns
