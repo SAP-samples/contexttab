@@ -12,18 +12,18 @@ Tabular in-context learning (ICL) has recently achieved state-of-the-art (SOTA) 
 
 ## Requirements
 
-This project uses Git LFS to manage model checkpoints. If you haven't installed Git LFS yet, please run:
-```git lfs install```
-and then clone the repository:
-```git clone https://github.com/SAP-samples/contexttab.git```
+This project uses Git LFS to manage model checkpoints. If you haven't installed Git LFS yet, please run:  
+```git lfs install```  
+and then clone the repository:  
+```git clone https://github.com/SAP-samples/contexttab.git```  
 Model checkpoints will be automatically downloaded.
 
 The requirements are detailed in the `requirements.txt` file for Python 3.11 version.
 
-Local development installation:
+Local development installation:  
 ```pip install -e .```
 
-Installation from source:
+Installation from source:  
 ```pip install git+https://${GIT_TOKEN}@github.com/SAP-samples/contexttab```
 
 ## Basic Usage
