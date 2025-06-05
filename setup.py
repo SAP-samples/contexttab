@@ -49,7 +49,7 @@ setup(
     packages=find_packages(include=["contexttab", "contexttab.*"]),
     package_data={
         "contexttab": [
-            "checkpoints/0.1_l2/base.pt", "*.lfs"
+            "checkpoints/l2/base.pt", "*.lfs"
         ],
     },
     include_package_data=True,
