@@ -12,38 +12,46 @@ Tabular in-context learning (ICL) has recently achieved state-of-the-art (SOTA) 
 
 ## Requirements
 
-The requirements are detailed in the `requirements.txt` file
+This project uses Git LFS to manage model checkpoints. If you haven't installed Git LFS yet, please run:
+```git lfs install```
+and then clone the repository:
+```git clone https://github.com/SAP-samples/contexttab.git```
+Model checkpoints will be automatically downloaded.
+
+The requirements are detailed in the `requirements.txt` file for Python 3.11 version.
+
+Local development installation:
+```pip install -e .```
+
+Installation from source:
+```pip install git+https://${GIT_TOKEN}@github.com/SAP-samples/contexttab```
 
 ## Basic Usage
+
+The model supports both classification and regression tasks. It accepts input data in the form of a pandas DataFrame or a NumPy array. No preprocessing is required, column names and cell values are automatically embedded using an LLM that is running in the background, and any missing values are handled correctly.
+
+For best performance, use a GPU with at least 80 GB of memory and set the context size to 8192. For large tables, it is recommended to use a bagging factor of 8.
 
 ### Classification
 
 ```python
 from sklearn.datasets import load_breast_cancer
-from sklearn.metrics import accuracy_score, roc_auc_score
+from sklearn.metrics import accuracy_score
 from sklearn.model_selection import train_test_split
 
 from contexttab.contexttab import ConTextTabClassifier
-from contexttab.constants import ModelSize
 
-# Load data
+# Load sample data
 X, y = load_breast_cancer(return_X_y=True)
 X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.5, random_state=42)
 
 # Initialize a classifier
-clf = ConTextTabClassifier(ModelSize.base,
-                           './contexttab/checkpoints/0.1_l2/base.pt',
-                           bagging=1,
-                           max_context_size=2048,
-                           regression_type='l2',
-                           classification_type='cross-entropy')
+clf = ConTextTabClassifier(bagging=1, max_context_size=2048)
 
 clf.fit(X_train, y_train)
 
 # Predict probabilities
 prediction_probabilities = clf.predict_proba(X_test)
-print("ROC AUC:", roc_auc_score(y_test, prediction_probabilities[:, 1]))
-
 # Predict labels
 predictions = clf.predict(X_test)
 print("Accuracy", accuracy_score(y_test, predictions))
@@ -52,43 +60,34 @@ print("Accuracy", accuracy_score(y_test, predictions))
 ### Regression
 ```python
 from sklearn.datasets import fetch_openml
-from sklearn.metrics import mean_squared_error, r2_score
+from sklearn.metrics import r2_score
 from sklearn.model_selection import train_test_split
 
 from contexttab.contexttab import ConTextTabRegressor
-from contexttab.constants import ModelSize
 
-# Load Boston Housing data
-df = fetch_openml(data_id=531, as_frame=True)  # Boston Housing dataset
+
+# Load sample data
+df = fetch_openml(data_id=531, as_frame=True)
 X = df.data
-y = df.target.astype(float)  # Ensure target is float for regression
+y = df.target.astype(float)
 
 # Train-test split
 X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.5, random_state=42)
 
 # Initialize the regressor
-regressor = ConTextTabRegressor(ModelSize.base,
-                                './contexttab/checkpoints/0.1_l2/base.pt',
-                                bagging=1,
-                                max_context_size=2048,
-                                regression_type='l2',
-                                classification_type='cross-entropy')
+regressor = ConTextTabRegressor(bagging=1, max_context_size=2048)
 
 regressor.fit(X_train, y_train)
 
 # Predict on the test set
 predictions = regressor.predict(X_test)
 
-# Evaluate the model
-mse = mean_squared_error(y_test, predictions)
 r2 = r2_score(y_test, predictions)
-
-print("Mean Squared Error (MSE):", mse)
 print("R² Score:", r2)
 ```
 
 ## Citations
-If you use this dataset in your research or want to refer to our work, please cite: [TODO]
+If you use this code or model in your research or want to refer to our work, please cite: [TODO]
 
 ## Known Issues
 No known issues

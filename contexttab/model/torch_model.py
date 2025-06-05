@@ -22,11 +22,23 @@ os.environ['TORCH_CUDNN_SDPA_ENABLED'] = '1'
 
 
 class ConTextTab(nn.Module, ModuleUtilsMixin):
+    """ConTextTab model class.
 
+    Args:
+        model_size: size of the model e.g. ModelSize.mini or ModelSize.base
+        regression_type: regression type that was used in the specified model
+            - reg-as-classif - binned regression where bin is associated with the quantile of a given column
+            - l2 - direct prediction of the target value with L2 loss during training
+        classification_type: classification type that was used in the specified model
+            - cross-entropy - class likelihood prediction using cross entropy loss during training
+            - clustering - class prediction using similarity between context and query vectors
+            - clustering-cosine - class prediction using cosine similarity between context and query vectors
+        attention_implementation: backend for scaled dot product attention: math, efficient.
+        checkpointing_segments: number of model's chunks/segments to checkpoint during training to save memory.
+    """
     def __init__(self,
                  model_size: ModelSize,
-                 regression_type: Literal['reg-as-classif', 'l2', 'l2-with-target-binning', 'clustering',
-                                          'clustering-cosine'] = 'reg-as-classif',
+                 regression_type: Literal['reg-as-classif', 'l2'] = 'reg-as-classif',
                  classification_type: Literal['cross-entropy', 'clustering', 'clustering-cosine'] = 'cross-entropy',
                  attention_implementation='efficient',
                  checkpointing_segments=1,
@@ -55,11 +67,8 @@ class ConTextTab(nn.Module, ModuleUtilsMixin):
             self.output_head_classif = nn.Linear(self.config.hidden_size, max_number_of_labels)
 
         self.dense_reg = nn.Linear(self.config.hidden_size, self.config.hidden_size)
-        if self.regression_type in ['l2', 'l2-with-target-binning']:
+        if self.regression_type == 'l2':
             self.output_head_reg = nn.Linear(self.config.hidden_size, 1)
-        elif self.regression_type in ['clustering', 'clustering-cosine']:
-            self.cluster_out_dim = self.config.hidden_size
-            self.output_head_reg = nn.Linear(self.config.hidden_size, self.cluster_out_dim)
         else:
             self.output_head_reg = nn.Linear(self.config.hidden_size, max_number_of_labels)
 
@@ -260,27 +269,15 @@ class ConTextTab(nn.Module, ModuleUtilsMixin):
                 out = gelu(out)
                 out = self.output_head_classif(out)
         else:
-            if self.regression_type in ['clustering', 'clustering-cosine']:
-                use_cosine_similarity = self.regression_type == 'clustering-cosine'
-                out = self.forward_clustering_head(encoder_outputs,
-                                                   self.dense_reg,
-                                                   self.output_head_reg,
-                                                   use_cosine_similarity=use_cosine_similarity)
-            else:
-                out = self.dense_reg(encoder_outputs)
-                out = gelu(out)
-                out = self.output_head_reg(out)
+            out = self.dense_reg(encoder_outputs)
+            out = gelu(out)
+            out = self.output_head_reg(out)
 
         if labels is None:
             if is_classification:
                 if self.classification_type == 'clustering':
                     out = torch.sigmoid(out)
                 if self.classification_type in ['clustering', 'clustering-cosine']:
-                    out = (out + out.transpose(-2, -1)) / 2
-            else:
-                if self.regression_type == 'clustering':
-                    out = torch.sigmoid(out)
-                if self.regression_type in ['clustering', 'clustering-cosine']:
                     out = (out + out.transpose(-2, -1)) / 2
             return out
 
@@ -295,11 +292,7 @@ class ConTextTab(nn.Module, ModuleUtilsMixin):
         else:
             assert target_delta is not None
             real_target = torch.round(target + target_delta).int()
-            if self.regression_type in ['clustering', 'clustering-cosine']:
-                out, loss, metric = self.compute_clustering_output_loss_and_metric(
-                    out, labels, real_target, is_cosine_similarity=self.regression_type == 'clustering-cosine')
-            else:
-                out, loss, metric = self.compute_regression_output_loss_and_metric(out, labels, real_target)
+            out, loss, metric = self.compute_regression_output_loss_and_metric(out, labels, real_target)
 
         return out, loss, metric
 
@@ -359,10 +352,6 @@ class ConTextTab(nn.Module, ModuleUtilsMixin):
 
         if self.regression_type == 'reg-as-classif':
             test_logits = logits[test_mask]
-            test_probas = torch.softmax(test_logits[:, :len(label_classes)], dim=1).cpu().float().numpy()
-            test_preds = test_probas @ label_classes
-        elif self.regression_type in ['clustering', 'clustering-cosine']:
-            _, test_logits = self._extract_prediction_clustering(logits, targets, test_mask, label_classes)
             test_probas = torch.softmax(test_logits[:, :len(label_classes)], dim=1).cpu().float().numpy()
             test_preds = test_probas @ label_classes
         else:
