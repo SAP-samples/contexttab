@@ -3,7 +3,7 @@
 
 ## Description
 
-Implementation of the deep learning model with the inference pipeline described in the paper "ConTextTab: A Semantics-Aware Tabular In-Context Learner". Link to the paper: [ARXIV LINK]
+Implementation of the deep learning model with the inference pipeline described in the paper "ConTextTab: A Semantics-Aware Tabular In-Context Learner".
 
 ![logo](./ConTextTab_architecture.png)
 ## Abstract
@@ -85,9 +85,6 @@ predictions = regressor.predict(X_test)
 r2 = r2_score(y_test, predictions)
 print("R² Score:", r2)
 ```
-
-## Citations
-If you use this code or model in your research or want to refer to our work, please cite: [TODO]
 
 ## Known Issues
 No known issues
