@@ -24,7 +24,7 @@ Local development installation:
 ```pip install -e .```
 
 Installation from source:  
-```pip install git+https://@github.com/SAP-samples/contexttab```
+```pip install git+https://github.com/SAP-samples/contexttab```
 
 ## Basic Usage
 
