@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: 2025 SAP SE
+#
+# SPDX-License-Identifier: Apache-2.0
+
 import atexit
 import multiprocessing
 import pickle
