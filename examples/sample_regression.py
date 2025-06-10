@@ -6,7 +6,7 @@ from sklearn.datasets import fetch_openml
 from sklearn.metrics import r2_score
 from sklearn.model_selection import train_test_split
 
-from contexttab.contexttab import ConTextTabRegressor
+from contexttab import ConTextTabRegressor
 
 
 # Load sample data
