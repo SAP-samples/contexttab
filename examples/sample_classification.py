@@ -6,7 +6,7 @@ from sklearn.datasets import load_breast_cancer
 from sklearn.metrics import accuracy_score
 from sklearn.model_selection import train_test_split
 
-from contexttab.contexttab import ConTextTabClassifier
+from contexttab import ConTextTabClassifier
 
 # Load sample data
 X, y = load_breast_cancer(return_X_y=True)
