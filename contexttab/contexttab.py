@@ -74,6 +74,7 @@ class ConTextTabEstimator(BaseEstimator, ABC):
                  is_drop_constant_columns: bool = True):
 
         self.model_size = ModelSize[checkpoint.split('/')[-1].split('.')[0]]
+        self.checkpoint_revision = checkpoint_revision
         self.checkpoint = hf_hub_download(repo_id="sap-ai-research/contexttab", filename=checkpoint, revision=checkpoint_revision)
         self.bagging = bagging
         if not isinstance(bagging, int) and bagging != 'auto':
