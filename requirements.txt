@@ -5,3 +5,4 @@ torch>=2.7.0
 scikit-learn>=1.6.1
 pandas>=2.2.3
 pyarrow>=20.0.0
+huggingface_hub

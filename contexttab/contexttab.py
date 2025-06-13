@@ -9,6 +9,7 @@ from math import ceil
 from pathlib import Path
 from typing import Literal, Optional, Union
 
+from huggingface_hub import hf_hub_download
 import numpy as np
 import pandas as pd
 import torch
@@ -63,7 +64,8 @@ class ConTextTabEstimator(BaseEstimator, ABC):
     MAX_NUM_COLUMNS = 500
 
     def __init__(self,
-                 checkpoint: str = 'checkpoints/l2/base.pt',
+                 checkpoint: str = 'l2/base.pt',
+                 checkpoint_revision: str = 'main',
                  bagging: Union[Literal['auto'], int] = 1,
                  max_context_size: int = 8192,
                  num_regression_bins: int = 16,
@@ -72,8 +74,7 @@ class ConTextTabEstimator(BaseEstimator, ABC):
                  is_drop_constant_columns: bool = True):
 
         self.model_size = ModelSize[checkpoint.split('/')[-1].split('.')[0]]
-        package_dir = Path(__file__).parent
-        self.checkpoint = os.path.join(package_dir, checkpoint)
+        self.checkpoint = hf_hub_download(repo_id="sap-ai-research/ConTextTab", filename=checkpoint, revision=checkpoint_revision)
         self.bagging = bagging
         if not isinstance(bagging, int) and bagging != 'auto':
             raise ValueError('bagging must be an integer or "auto"')
