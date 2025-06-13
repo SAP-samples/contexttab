@@ -65,7 +65,7 @@ class ConTextTabEstimator(BaseEstimator, ABC):
 
     def __init__(self,
                  checkpoint: str = 'l2/base.pt',
-                 checkpoint_revision: str = 'main',
+                 checkpoint_revision: str = 'v1.0.0',
                  bagging: Union[Literal['auto'], int] = 1,
                  max_context_size: int = 8192,
                  num_regression_bins: int = 16,
