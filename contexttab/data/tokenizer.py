@@ -309,9 +309,12 @@ class Tokenizer:
 
     def replace_inf_values(self, column_values: pd.Series):
         array_values = column_values.values
-        max_value = array_values[np.isfinite(array_values)].max()
-        min_value = array_values[np.isfinite(array_values)].min()
-        clipped_values = np.clip(array_values, min_value - 1, max_value + 1)
+        if not np.isfinite(array_values).any():
+            clipped_values = np.full(array_values.shape, np.nan)
+        else:
+            max_value = array_values[np.isfinite(array_values)].max()
+            min_value = array_values[np.isfinite(array_values)].min()
+            clipped_values = np.clip(array_values, min_value - 1, max_value + 1)
         return pd.Series(clipped_values, index=column_values.index)
 
     def process_features(self, X_context, X_query, data):
