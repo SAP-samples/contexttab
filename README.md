@@ -46,7 +46,7 @@ X, y = load_breast_cancer(return_X_y=True)
 X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.5, random_state=42)
 
 # Initialize a classifier
-clf = ConTextTabClassifier(bagging=1, max_context_size=2048)
+clf = ConTextTabClassifier(bagging=1, max_context_size=2048, test_chunk_size=1000)
 
 clf.fit(X_train, y_train)
 
@@ -75,7 +75,7 @@ y = df.target.astype(float)
 X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.5, random_state=42)
 
 # Initialize the regressor
-regressor = ConTextTabRegressor(bagging=1, max_context_size=2048)
+regressor = ConTextTabRegressor(bagging=1, max_context_size=2048, test_chunk_size=1000)
 
 regressor.fit(X_train, y_train)
 

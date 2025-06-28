@@ -283,6 +283,8 @@ class ConTextTab(nn.Module, ModuleUtilsMixin):
                     out = torch.sigmoid(out)
                 if self.classification_type in ['clustering', 'clustering-cosine']:
                     out = (out + out.transpose(-2, -1)) / 2
+                if self.regression_type == 'l2':
+                    out = out.squeeze(-1)
             return out
 
         assert target is not None

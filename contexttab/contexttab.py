@@ -58,6 +58,7 @@ class ConTextTabEstimator(BaseEstimator, ABC):
             - clustering - class prediction using similarity between context and query vectors
             - clustering-cosine - class prediction using cosine similarity between context and query vectors 
         is_drop_constant_columns: flag to indicate to drop constant columns in the input dataframe
+        test_chunk_size: number of test rows to use for prediction at once
     """
     classification_or_regression: str
     MAX_AUTO_BAGS = 16
@@ -71,7 +72,8 @@ class ConTextTabEstimator(BaseEstimator, ABC):
                  num_regression_bins: int = 16,
                  regression_type: Literal['reg-as-classif', 'l2'] = 'l2',
                  classification_type: Literal['cross-entropy', 'clustering', 'clustering-cosine'] = 'cross-entropy',
-                 is_drop_constant_columns: bool = True):
+                 is_drop_constant_columns: bool = True,
+                 test_chunk_size: int = 1000):
 
         self.model_size = ModelSize[checkpoint.split('/')[-1].split('.')[0]]
         self.checkpoint_revision = checkpoint_revision
@@ -107,6 +109,7 @@ class ConTextTabEstimator(BaseEstimator, ABC):
             is_valid=True)
         self.model.to(self.device).eval()
         self.classification_type = classification_type
+        self.test_chunk_size = test_chunk_size
 
     @abstractmethod
     def task_specific_fit(self):
@@ -128,9 +131,9 @@ class ConTextTabEstimator(BaseEstimator, ABC):
 
         self.X_ = X
 
-        self.max_samples_in_bag = self.max_context_size
+        self.bagging_config = self.bagging
         if X.shape[0] < self.max_context_size:
-            self.max_samples_in_bag = X.shape[0]
+            self.bagging_config = 1
 
         self.y_ = y
         # Return the classifier
@@ -140,11 +143,11 @@ class ConTextTabEstimator(BaseEstimator, ABC):
     @property
     def bagging_number(self):
         check_is_fitted(self)
-        if self.bagging == 'auto':
+        if self.bagging_config == 'auto':
             return min(self.MAX_AUTO_BAGS, ceil(len(self.X_) / self.max_context_size))
         else:
-            assert isinstance(self.bagging, int)
-            return self.bagging
+            assert isinstance(self.bagging_config, int)
+            return self.bagging_config
 
     def get_tokenized_data(self, X_test, bagging_index):
         X_train = self.X_
@@ -157,12 +160,12 @@ class ConTextTabEstimator(BaseEstimator, ABC):
         df_train = pd.concat([X_train, y_train.to_frame()], axis=1)
         df_test = pd.concat([X_test, y_test.to_frame()], axis=1)
 
-        if isinstance(self.bagging, int) and self.bagging > 1:
+        if isinstance(self.bagging_config, int) and self.bagging_config > 1:
             # For bagging, we use replacement
-            df_train = df_train.sample(self.max_samples_in_bag, replace=True, random_state=self.seed + bagging_index)
+            df_train = df_train.sample(self.max_context_size, replace=False, random_state=self.seed + bagging_index)
         elif len(df_train) > self.max_context_size:
-            if isinstance(self.bagging, str):
-                assert self.bagging == 'auto'
+            if isinstance(self.bagging_config, str):
+                assert self.bagging_config == 'auto'
                 # Split the data into overlapping chunks of size max_context_size
                 # Randomize order as well, to have balanced bags
                 # bagging_index = 0 --> select 0:max_context_size
@@ -248,9 +251,6 @@ class ConTextTabClassifier(ClassifierMixin, ConTextTabEstimator):
         # Check if fit has been called
         check_is_fitted(self)
 
-        if not isinstance(X, pd.DataFrame):
-            X = pd.DataFrame(X, columns=self.X_.columns)
-
         all_logits = []
 
         for bagging_index in range(self.bagging_number):
@@ -289,7 +289,16 @@ class ConTextTabClassifier(ClassifierMixin, ConTextTabEstimator):
         Returns:
             The predicted class labels.
         """
-        probs = self._predict(X)
+        if not isinstance(X, pd.DataFrame):
+            X = pd.DataFrame(X, columns=self.X_.columns)
+
+        probs = []
+        for start in range(0, len(X), self.test_chunk_size):
+            end = start + self.test_chunk_size
+            pred = self._predict(X.iloc[start:end])
+            probs.append(pred)
+        probs = torch.cat(probs)
+
         preds = probs.argmax(dim=-1).numpy()
         return [self.classes_[p] for p in preds]
 
@@ -302,7 +311,15 @@ class ConTextTabClassifier(ClassifierMixin, ConTextTabEstimator):
         Returns:
             The predicted probabilities of the classes.
         """
-        probs = self._predict(X)
+        if not isinstance(X, pd.DataFrame):
+            X = pd.DataFrame(X, columns=self.X_.columns)
+
+        probs = []
+        for start in range(0, len(X), self.test_chunk_size):
+            end = start + self.test_chunk_size
+            pred = self._predict(X.iloc[start:end])
+            probs.append(pred)
+        probs = torch.cat(probs)
         return probs.numpy()
 
 
@@ -313,7 +330,7 @@ class ConTextTabRegressor(RegressorMixin, ConTextTabEstimator):
         self.y_ = self.y_.astype(float)
 
     @torch.no_grad()
-    def predict(self, X: Union[pd.DataFrame, np.ndarray]) -> np.ndarray:
+    def _predict(self, X: Union[pd.DataFrame, np.ndarray]) -> np.ndarray:
         """Predict the target variable.
 
         Args:
@@ -324,9 +341,6 @@ class ConTextTabRegressor(RegressorMixin, ConTextTabEstimator):
         """
         # Check if fit has been called
         check_is_fitted(self)
-
-        if not isinstance(X, pd.DataFrame):
-            X = pd.DataFrame(X, columns=self.X_.columns)
 
         all_preds = []
 
@@ -349,4 +363,25 @@ class ConTextTabRegressor(RegressorMixin, ConTextTabEstimator):
 
         preds = np.mean(all_preds, axis=0)
 
+        return preds
+
+    @torch.no_grad()
+    def predict(self, X: Union[pd.DataFrame, np.ndarray]) -> np.ndarray:
+        """Predict the target variable.
+
+        Args:
+            X: The input dataframe.
+
+        Returns:
+            The predicted target variable.
+        """
+        if not isinstance(X, pd.DataFrame):
+            X = pd.DataFrame(X, columns=self.X_.columns)
+
+        preds = []
+        for start in range(0, len(X), self.test_chunk_size):
+            end = start + self.test_chunk_size
+            pred = self._predict(X.iloc[start:end])
+            preds.append(pred)
+        preds = np.concatenate(preds)
         return preds
