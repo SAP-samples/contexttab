@@ -1,5 +1,5 @@
-# ConTextTab: A Semantics-Aware Tabular In-Context Learner
-[![REUSE status](https://api.reuse.software/badge/github.com/SAP-samples/contexttab)](https://api.reuse.software/info/github.com/SAP-samples/contexttab)
+# [ConTextTab: A Semantics-Aware Tabular In-Context Learner](https://arxiv.org/abs/2506.10707)
+[![arXiv](https://img.shields.io/badge/arXiv-2506.10707-G.svg)](https://arxiv.org/abs/2506.10707)[![REUSE status](https://api.reuse.software/badge/github.com/SAP-samples/contexttab)](https://api.reuse.software/info/github.com/SAP-samples/contexttab)
 
 ## Description
 
