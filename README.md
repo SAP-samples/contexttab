@@ -1,5 +1,5 @@
-# ConTextTab: A Semantics-Aware Tabular In-Context Learner
-[![REUSE status](https://api.reuse.software/badge/github.com/SAP-samples/contexttab)](https://api.reuse.software/info/github.com/SAP-samples/contexttab)
+# [ConTextTab: A Semantics-Aware Tabular In-Context Learner](https://arxiv.org/abs/2506.10707)
+[![arXiv](https://img.shields.io/badge/arXiv-2506.10707-G.svg)](https://arxiv.org/abs/2506.10707)[![REUSE status](https://api.reuse.software/badge/github.com/SAP-samples/contexttab)](https://api.reuse.software/info/github.com/SAP-samples/contexttab)
 
 ## Description
 
@@ -12,11 +12,7 @@ Tabular in-context learning (ICL) has recently achieved state-of-the-art (SOTA) 
 
 ## Requirements
 
-This project uses Git LFS to manage model checkpoints. If you haven't installed Git LFS yet, please run:  
-```git lfs install```  
-and then clone the repository:  
-```git clone https://github.com/SAP-samples/contexttab.git```  
-Model checkpoints will be automatically downloaded.
+This project uses model checkpoints available on https://huggingface.co/sap-ai-research/contexttab that are automatically downloaded when running the model.  
 
 The requirements are detailed in the `requirements.txt` file for Python 3.11 version.
 
@@ -84,6 +80,20 @@ predictions = regressor.predict(X_test)
 
 r2 = r2_score(y_test, predictions)
 print("R² Score:", r2)
+```
+
+## Citations
+
+If you use this model in your research or want to refer to our work, please cite:
+```
+@inproceedings{
+spinaci2025contexttab,
+title={ConTextTab: A Semantics-Aware Tabular In-Context Learner},
+author={Marco Spinaci and Marek Polewczyk and Maximilian Schambach and Sam Thelin},
+booktitle={1st ICML Workshop on Foundation Models for Structured Data},
+year={2025},
+url={https://openreview.net/forum?id=MmKuX9ZvM3}
+}
 ```
 
 ## Known Issues
