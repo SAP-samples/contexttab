@@ -1,9 +1,8 @@
 # ConTextTab: A Semantics-Aware Tabular In-Context Learner
-[![arXiv](https://img.shields.io/badge/arXiv-2506.10707-G.svg)](https://arxiv.org/abs/2506.10707) [![REUSE status](https://api.reuse.software/badge/github.com/SAP-samples/contexttab)](https://api.reuse.software/info/github.com/SAP-samples/contexttab)
 
 ## Description
 
-Implementation of the deep learning model with the inference pipeline described in the paper ["ConTextTab: A Semantics-Aware Tabular In-Context Learner"](https://arxiv.org/abs/2506.10707).
+Implementation of the deep learning model with the inference pipeline described in the paper "ConTextTab: A Semantics-Aware Tabular In-Context Learner"
 
 ![logo](./ConTextTab_architecture.png)
 ## Abstract
@@ -12,7 +11,7 @@ Tabular in-context learning (ICL) has recently achieved state-of-the-art (SOTA) 
 
 ## Requirements
 
-This project uses model checkpoints available on https://huggingface.co/sap-ai-research/contexttab that are automatically downloaded when running the model.  
+This project uses model checkpoints available on huggingface that are automatically downloaded when running the model.  
 
 The requirements are detailed in the `requirements.txt` file for Python 3.11 version.
 
@@ -20,7 +19,7 @@ Local development installation:
 ```pip install -e .```
 
 Installation from source:  
-```pip install git+https://github.com/SAP-samples/contexttab```
+```pip install -e .```
 
 ## Basic Usage
 
@@ -82,30 +81,11 @@ r2 = r2_score(y_test, predictions)
 print("R² Score:", r2)
 ```
 
-## Citations
-
-If you use this model in your research or want to refer to our work, please cite:
-```
-@inproceedings{
-spinaci2025contexttab,
-title={ConTextTab: A Semantics-Aware Tabular In-Context Learner},
-author={Marco Spinaci and Marek Polewczyk and Maximilian Schambach and Sam Thelin},
-booktitle={1st ICML Workshop on Foundation Models for Structured Data},
-year={2025},
-url={https://openreview.net/forum?id=MmKuX9ZvM3}
-}
-```
-
 ## Known Issues
 No known issues
 
-## How to obtain support
-[Create an issue](https://github.com/SAP-samples/contexttab/issues) in this repository if you find a bug or have questions about the content.
-
-## Contributing
-If you wish to contribute code, offer fixes or improvements, please send a pull request. Due to legal reasons, contributors will be asked to accept a DCO when they create the first pull request to this project. This happens in an automated fashion during the submission process. SAP uses [the standard DCO text of the Linux Foundation](https://developercertificate.org/).
 
 ## License
-Copyright (c) 2024 SAP SE or an SAP affiliate company. All rights reserved. This project is licensed under the Apache Software License, version 2.0 except as noted otherwise in the [LICENSE](LICENSE) file.
+This project is licensed under the Apache Software License, version 2.0 except as noted otherwise in the [LICENSE](LICENSE) file.
 
 The model checkpoints have been trained on [the T4 dataset](https://huggingface.co/datasets/mlfoundations/t4-full), which, in turn, is a subset of [the TabLib dataset](https://huggingface.co/datasets/approximatelabs/tablib-v1-full). As such, they inherit the same restrictions described therein and in particular they are only intended for research purposes.

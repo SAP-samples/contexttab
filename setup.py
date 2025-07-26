@@ -43,8 +43,8 @@ requirements = get_requirements(requirements_file)
 setup(
     name="contexttab",
     version=version,
-    author="SAP",
-    author_email="marco.spinaci@sap.com, marek.polewczyk@sap.com, maximilian.schambach@sap.com",
+    author="contexttab",
+    author_email="",
     description="ConTextTab deep learning model",
     packages=find_packages(include=["contexttab", "contexttab.*"]),
     package_data={
@@ -57,6 +57,6 @@ setup(
     classifiers=["Git :: Commit ID :: {}".format(get_git_commit_id()), "Programming Language :: Python :: 3.11"],
     python_requires=">=3.11",
     zip_safe=False,
-    url="https://github.com/SAP-samples/contexttab.git",
+    url="",
     install_requires=requirements,
 )

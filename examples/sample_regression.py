@@ -1,7 +1,3 @@
-# SPDX-FileCopyrightText: 2025 SAP SE
-#
-# SPDX-License-Identifier: Apache-2.0
-
 from sklearn.datasets import fetch_openml
 from sklearn.metrics import r2_score
 from sklearn.model_selection import train_test_split
