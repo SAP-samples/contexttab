@@ -13,6 +13,14 @@ class LRU_Cache:
     root = []  # root of the circular doubly linked list
     root[:] = [root, root, None, None]  # initialize by pointing to self
 
+    def reset_cache(self):
+        self.cache = {}
+        self.full = False
+        self.hits = 0
+        self.misses = 0
+        self.root = []
+        self.root[:] = [self.root, self.root, None, None]
+
     def __init__(self, max_size=1000):
         self.max_size = max_size
 

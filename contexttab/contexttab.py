@@ -8,6 +8,8 @@ from abc import ABC, abstractmethod
 from math import ceil
 from pathlib import Path
 from typing import Literal, Optional, Union
+import pickle
+import time
 
 from huggingface_hub import hf_hub_download
 import numpy as np
@@ -18,7 +20,7 @@ from sklearn.utils.multiclass import unique_labels
 from sklearn.utils.validation import check_is_fitted
 
 from contexttab.constants import ZMQ_PORT_DEFAULT, ModelSize
-from contexttab.scripts.start_embedding_server import start_embedding_server
+from contexttab.scripts.start_embedding_server import start_embedding_server, send_clear_cache
 from contexttab.data.tokenizer import Tokenizer
 from contexttab.model.torch_model import ConTextTab
 
@@ -75,6 +77,7 @@ class ConTextTabEstimator(BaseEstimator, ABC):
                  is_drop_constant_columns: bool = True,
                  test_chunk_size: int = 1000):
 
+        start_time = time.time()
         self.model_size = ModelSize[checkpoint.split('/')[-1].split('.')[0]]
         self.checkpoint_revision = checkpoint_revision
         self.checkpoint = hf_hub_download(repo_id="sap-ai-research/contexttab", filename=checkpoint, revision=checkpoint_revision)
@@ -110,6 +113,7 @@ class ConTextTabEstimator(BaseEstimator, ABC):
         self.model.to(self.device).eval()
         self.classification_type = classification_type
         self.test_chunk_size = test_chunk_size
+        print('------- Init time:', time.time() - start_time)
 
     @abstractmethod
     def task_specific_fit(self):
@@ -248,6 +252,8 @@ class ConTextTabClassifier(ClassifierMixin, ConTextTabEstimator):
 
     @torch.no_grad()
     def _predict(self, X: Union[pd.DataFrame, np.ndarray]):
+        send_clear_cache()
+
         # Check if fit has been called
         check_is_fitted(self)
 

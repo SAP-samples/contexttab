@@ -79,6 +79,10 @@ def main(port: int, context: zmq.Context):
         if not data:
             continue
 
+        if data[0]['texts'][0] == 'CLEAR_CACHE':
+            print('Clearing LRU embedding cache')
+            cache.reset_cache()
+
         # process messages in batch
         results = process_data(data)
         for element, result in zip(data, results):

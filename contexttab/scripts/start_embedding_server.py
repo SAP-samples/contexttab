@@ -108,6 +108,23 @@ def test(sentence_embedding_model_name, gpu_idx: Optional[int] = None):
     print('Test passed!')
 
 
+def send_clear_cache():
+    zmq_port = ZMQ_PORT_DEFAULT
+    socket = zmq.Context().socket(zmq.REQ)
+    socket.connect(f'tcp://localhost:{zmq_port}')
+    # Timeout after 10 seconds
+    socket.setsockopt(zmq.RCVTIMEO, 10000)
+    socket.setsockopt(zmq.LINGER, 0)
+
+    serialized_data = pickle.dumps(['CLEAR_CACHE'])
+    socket.send(serialized_data)
+
+    try:
+        response = socket.recv()
+    except zmq.error.Again as e:
+        raise ValueError('No response from server, it did not start correctly.') from e
+
+
 if __name__ == '__main__':
     start_embedding_server('sentence-transformers/all-MiniLM-L6-v2')
     wait_until_done()
