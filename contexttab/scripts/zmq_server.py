@@ -100,6 +100,8 @@ if __name__ == '__main__':
         device = torch.device(f'cuda:{args.gpu_idx}')
     else:
         device = torch.device('cpu')
-    sentence_embedder = SentenceEmbedder(args.sentence_embedding_model_name, 32, device=device)
+
+    # TODO: batch size should be controlled dynamically based on available gpu memory
+    sentence_embedder = SentenceEmbedder(args.sentence_embedding_model_name, 512, device=device)
     global_context = zmq.Context()
     main(args.port, global_context)
