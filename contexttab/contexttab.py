@@ -77,7 +77,8 @@ class ConTextTabEstimator(BaseEstimator, ABC):
 
         self.model_size = ModelSize[checkpoint.split('/')[-1].split('.')[0]]
         self.checkpoint_revision = checkpoint_revision
-        self.checkpoint = hf_hub_download(repo_id="SAP/contexttab", filename=checkpoint, revision=checkpoint_revision)
+        self.checkpoint = checkpoint
+        self._checkpoint_path = hf_hub_download(repo_id="SAP/contexttab", filename=checkpoint, revision=checkpoint_revision)
         self.bagging = bagging
         if not isinstance(bagging, int) and bagging != 'auto':
             raise ValueError('bagging must be an integer or "auto"')
@@ -96,7 +97,7 @@ class ConTextTabEstimator(BaseEstimator, ABC):
         else:
             self.dtype = torch.float32
 
-        self.model.load_weights(Path(self.checkpoint), self.device)
+        self.model.load_weights(Path(self._checkpoint_path), self.device)
         self.regression_type = regression_type
         self.seed = 42
         self.is_drop_constant_columns = is_drop_constant_columns
